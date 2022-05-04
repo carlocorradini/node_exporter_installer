@@ -1,2 +1,3 @@
-# node_exporter_installer
-Node exporter install script
+# [https://github.com/prometheus/node_exporter](Node exporter) installation script
+
+Node exporter installation script
