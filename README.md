@@ -43,6 +43,8 @@ sh install.sh
    npm ci
    ```
 
+1. Edit `install.sh`
+
 ### Check
 
 ```shell
