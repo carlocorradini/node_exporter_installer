@@ -1,0 +1,25 @@
+{
+  "author": "Carlo Corradini <carlo.corradini98@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "homepage": "https://github.com/carlocorradini/node_exporter_installer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlocorradini/node_exporter_installer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/carlocorradini/node_exporter_installer/issues"
+  },
+  "scripts": {
+    "check": "npx markdownlint \"**/*.md\"",
+    "fix": "npx markdownlint --fix \"**/*.md\"",
+    "prepare": "npx husky install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^16.2.3",
+    "@commitlint/config-conventional": "^16.2.1",
+    "husky": "^7.0.4",
+    "lint-staged": "^12.4.0",
+    "markdownlint-cli": "^0.31.1"
+  }
+}
