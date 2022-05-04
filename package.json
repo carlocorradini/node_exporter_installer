@@ -2,6 +2,10 @@
   "author": "Carlo Corradini <carlo.corradini98@gmail.com>",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=14",
+    "npm": ">=7"
+  },
   "homepage": "https://github.com/carlocorradini/node_exporter_installer#readme",
   "repository": {
     "type": "git",
