@@ -21,6 +21,14 @@ curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_instal
 sh install.sh
 ```
 
+or
+
+```shell
+curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh -o install.sh
+chmod u+x
+./install.sh
+```
+
 ## Development
 
 ### Requirements
