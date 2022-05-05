@@ -58,16 +58,38 @@ quote() {
   done
 }
 
+# Add indentation and trailing slash to quoted args
+quote_indent() {
+  printf ' \\\n'
+  for _arg in "$@"; do
+    printf '\t%s \\\n' "$(quote "$_arg")"
+  done
+}
+
 # Escape most punctuation characters, except quotes, forward slash, and space
 escape() {
   printf '%s' "$@" | sed -e 's/\([][!#$%&()*;<=>?\_`{|}]\)/\\\1/g;'
 }
 
+# Escape double quotes
+escape_dq() {
+  printf '%s' "$@" | sed -e 's/"/\\"/g'
+}
+
 # Define needed environment variables
 setup_env() {
-  # Command
-  _cmd_node_exporter=$1
-  shift
+  # Command args
+  case "$1" in
+    (-*|"")
+      _cmd_node_exporter=
+    ;;
+    # Command provided
+    (*)
+      _cmd_node_exporter=$1
+      shift
+    ;;
+  esac
+
   CMD_NODE_EXPORTER_EXEC="$_cmd_node_exporter$(quote_indent "$@")"
 
   # use sudo if not already root
