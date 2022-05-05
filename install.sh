@@ -134,17 +134,28 @@ setup_env() {
     fi
   fi
 
+  # Set related files from system name
+  SERVICE_NODE_EXPORTER=node_exporter.service
+  UNINSTALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.uninstall.sh
+  KILLALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.killall.sh
+
+  # Extract port when address is specified or use default
+  if test "${CMD_NODE_EXPORTER_EXEC#*"--web.listen-address="}" != "$CMD_NODE_EXPORTER_EXEC"; then
+    NODE_EXPORTER_PORT=$(echo "$CMD_NODE_EXPORTER_EXEC" \
+      | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/ /g' \
+      | sed -e 's/.*--web.listen-address=\(.*\)[[:space:]].*/\1/' \
+      | sed 's/[^0-9]*//g')
+    info "Listening port '$NODE_EXPORTER_PORT'"
+  else
+    NODE_EXPORTER_PORT=9100
+  fi
+
   # Use systemd directory if defined or create default
   if [ -n "$INSTALL_NODE_EXPORTER_SYSTEMD_DIR" ]; then
     SYSTEMD_DIR="$INSTALL_NODE_EXPORTER_SYSTEMD_DIR"
   else
     SYSTEMD_DIR=/etc/systemd/system
   fi
-
-  # Set related files from system name
-  SERVICE_NODE_EXPORTER=node_exporter.service
-  UNINSTALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.uninstall.sh
-  KILLALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.killall.sh
 
   # Use service or environment location depending on systemd/openrc
   case $INIT_SYSTEM in
@@ -527,6 +538,11 @@ depend() {
   after firewall
 }
 
+start_pre() {
+  /sbin/iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
+  /sbin/iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
+}
+
 supervisor=supervise-daemon
 name=node_exporter
 command="$BIN_DIR/node_exporter"
@@ -580,8 +596,8 @@ TasksMax=infinity
 TimeoutStartSec=0
 Restart=always
 RestartSec=5s
-ExecStartPre=-/sbin/iptables -I INPUT 1 -p tcp --dport 9100 -s 127.0.0.1 -j ACCEPT
-ExecStartPre=-/sbin/iptables -I INPUT 3 -p tcp --dport 9100 -j DROP
+ExecStartPre=-/sbin/iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
+ExecStartPre=-/sbin/iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
 ExecStart=$BIN_DIR/node_exporter \\
     $CMD_NODE_EXPORTER_EXEC
 EOF
