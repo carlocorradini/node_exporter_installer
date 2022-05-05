@@ -288,6 +288,7 @@ verify_system() {
   verify_cmd chmod
   verify_cmd chown
   verify_cmd grep
+  verify_cmd iptables
   verify_cmd mktemp
   verify_cmd rm
   verify_cmd sed
@@ -539,8 +540,8 @@ depend() {
 }
 
 start_pre() {
-  /sbin/iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
-  /sbin/iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
+  iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
+  iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
 }
 
 supervisor=supervise-daemon
@@ -596,8 +597,8 @@ TasksMax=infinity
 TimeoutStartSec=0
 Restart=always
 RestartSec=5s
-ExecStartPre=-/sbin/iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
-ExecStartPre=-/sbin/iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
+ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
+ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -j DROP
 ExecStart=$BIN_DIR/node_exporter \\
     $CMD_NODE_EXPORTER_EXEC
 EOF
