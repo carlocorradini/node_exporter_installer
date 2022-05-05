@@ -295,7 +295,7 @@ can_skip_download() {
 }
 
 # Verify an executable Node exporter binary is installed
-verify_k3s_is_executable() {
+verify_node_exporter_is_executable() {
   if [ ! -x $BIN_DIR/node_exporter ]; then
     fatal "Executable Node exporter binary not found at '$BIN_DIR/node_exporter'"
   fi
