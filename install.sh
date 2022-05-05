@@ -618,5 +618,6 @@ eval set -- "$(escape "$INSTALL_NODE_EXPORTER_EXEC") $(quote "$@")"
   create_killall
   create_uninstall
   systemd_disable
+  create_service_file
   service_enable_and_start
 }
