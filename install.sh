@@ -497,7 +497,7 @@ trap remove_uninstall EXIT
 
 rm -rf /etc/node_exporter
 rm -rf /run/node_exporter
-rm -f $BIN_DIR/k3s
+rm -f $BIN_DIR/node_exporter
 rm -f $KILLALL_NODE_EXPORTER_SH
 EOF
   $SUDO chmod 755 "$UNINSTALL_NODE_EXPORTER_SH"
