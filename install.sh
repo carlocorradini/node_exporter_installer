@@ -263,11 +263,11 @@ verify_cmd() {
 # Verify downloader command is installed
 verify_downloader_cmd() {
   # Cycle downloader commands
-  for cmd in ${1:+"$@"}; do
+  for _cmd in "$@"; do
     # Check if exists
-    if command -v "$cmd" >/dev/null 2>&1; then
+    if command -v "$_cmd" >/dev/null 2>&1; then
       # Found
-      DOWNLOADER=$cmd
+      DOWNLOADER=$_cmd
       return
     fi
   done
