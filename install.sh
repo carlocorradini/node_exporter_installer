@@ -63,7 +63,7 @@ escape() {
 
 # Define needed environment variables
 setup_env() {
-  # use sudo if we are not already root
+  # use sudo if not already root
   SUDO=sudo
   if [ "$(id -u)" -eq 0 ]; then
     SUDO=
@@ -71,7 +71,7 @@ setup_env() {
 
   # Use binary install directory if defined or create default
   if [ -n "$INSTALL_NODE_EXPORTER_BIN_DIR" ]; then
-    BIN_DIR=${INSTALL_NODE_EXPORTER_BIN_DIR}
+    BIN_DIR=$INSTALL_NODE_EXPORTER_BIN_DIR
   else
     # Use /usr/local/bin if root can write to it, otherwise use /opt/bin if it exists
     BIN_DIR=/usr/local/bin
@@ -81,6 +81,35 @@ setup_env() {
       fi
     fi
   fi
+
+  # Use systemd directory if defined or create default
+  if [ -n "$INSTALL_NODE_EXPORTER_SYSTEMD_DIR" ]; then
+    SYSTEMD_DIR="$INSTALL_NODE_EXPORTER_SYSTEMD_DIR"
+  else
+    SYSTEMD_DIR=/etc/systemd/system
+  fi
+
+  # Set related files from system name
+  SERVICE_NODE_EXPORTER=node_exporter.service
+  UNINSTALL_NODE_EXPORTER_SH=${UNINSTALL_NODE_EXPORTER_SH:-$BIN_DIR/node_exporter.uninstall.sh}
+  KILLALL_NODE_EXPORTER_SH=${KILLALL_NODE_EXPORTER_SH:-$BIN_DIR/node_exporter.killall.sh}
+
+  # Use service or environment location depending on systemd/openrc
+  case $INIT_SYSTEM in
+    openrc)
+      $SUDO mkdir -p /etc/node_exporter
+      FILE_NODE_EXPORTER_SERVICE=/etc/init.d/node_exporter
+      FILE_NODE_EXPORTER_ENV=/etc/node_exporter/node_exporter.env
+    ;;
+    systemd)
+      FILE_NODE_EXPORTER_SERVICE=$SYSTEMD_DIR/$SERVICE_NODE_EXPORTER
+      FILE_NODE_EXPORTER_ENV=$SYSTEMD_DIR/$SERVICE_NODE_EXPORTER.env
+    ;;
+    *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
+  esac
+
+  # Get hash of config & exec for currently installed Node exporter
+  PRE_INSTALL_HASHES=$(get_installed_hashes)
 }
 
 # Verify init system
@@ -308,7 +337,7 @@ setup_binary() {
   chmod 755 "$TMP_BIN"
   info "Installing Node exporter to $BIN_DIR/node_exporter"
   $SUDO chown root:root "$TMP_BIN"
-  $SUDO mv -f "$TMP_BIN" "$BIN_DIR/k3s"
+  $SUDO mv -f "$TMP_BIN" "$BIN_DIR/node_exporter"
 }
 
 # Download and verify
@@ -332,6 +361,212 @@ download_and_verify() {
   setup_binary
 }
 
+# Create killall script
+create_killall() {
+  info "Creating killall script '$KILLALL_NODE_EXPORTER_SH'"
+  $SUDO tee "$KILLALL_NODE_EXPORTER_SH" >/dev/null << \EOF
+#!/usr/bin/env sh
+[ $(id -u) -eq 0 ] || exec sudo $0 $@
+set -x
+for service in /etc/systemd/system/node_exporter.service; do
+  [ -s $service ] && systemctl stop $(basename $service)
+done
+for service in /etc/init.d/node_exporter.service; do
+  [ -x $service ] && $service stop
+done
+
+do_unmount_and_remove() {
+  set +x
+  while read -r _ path _; do
+    case "$path" in $1*) echo "$path" ;; esac
+  done < /proc/self/mounts | sort -r | xargs -r -t -n 1 sh -c 'umount "$0" && rm -rf "$0"'
+  set -x
+}
+do_unmount_and_remove '/run/node_exporter'
+EOF
+  $SUDO chmod 755 "$KILLALL_NODE_EXPORTER_SH"
+  $SUDO chown root:root "$KILLALL_NODE_EXPORTER_SH"
+}
+
+# Create uninstall script
+create_uninstall() {
+  info "Creating uninstall script '$UNINSTALL_NODE_EXPORTER_SH'"
+  $SUDO tee "$UNINSTALL_NODE_EXPORTER_SH" >/dev/null << EOF
+#!/usr/bin/env sh
+set -x
+[ \$(id -u) -eq 0 ] || exec sudo \$0 \$@
+$KILLALL_NODE_EXPORTER_SH
+if command -v systemctl; then
+  systemctl disable node_exporter
+  systemctl reset-failed node_exporter
+  systemctl daemon-reload
+fi
+if command -v rc-update; then
+  rc-update delete node_exporter default
+fi
+
+rm -f $FILE_NODE_EXPORTER_SERVICE
+rm -f $FILE_NODE_EXPORTER_ENV
+
+remove_uninstall() {
+  rm -f $UNINSTALL_NODE_EXPORTER_SH
+}
+trap remove_uninstall EXIT
+
+rm -rf /etc/node_exporter
+rm -rf /run/node_exporter
+rm -f $BIN_DIR/k3s
+rm -f $KILLALL_NODE_EXPORTER_SH
+EOF
+  $SUDO chmod 755 "$UNINSTALL_NODE_EXPORTER_SH"
+  $SUDO chown root:root "$UNINSTALL_NODE_EXPORTER_SH"
+}
+
+# Disable current service if loaded
+systemd_disable() {
+  $SUDO systemctl disable node_exporter >/dev/null 2>&1 || true
+  $SUDO rm -f /etc/systemd/system/$SERVICE_NODE_EXPORTER || true
+  $SUDO rm -f /etc/systemd/system/$SERVICE_NODE_EXPORTER.env || true
+}
+
+# FIXME remove
+# Capture current env and create file containing k3s_ variables ---
+create_env_file() {
+  info "env: Creating environment file $FILE_NODE_EXPORTER_ENV"
+  $SUDO touch "$FILE_NODE_EXPORTER_ENV"
+  $SUDO chmod 0600 "$FILE_NODE_EXPORTER_ENV"
+  sh -c export | while read -r x v; do echo "$v"; done | grep -E '^(K3S|CONTAINERD)_' | $SUDO tee $FILE_NODE_EXPORTER_ENV >/dev/null
+  sh -c export | while read -r x v; do echo "$v"; done | grep -Ei '^(NO|HTTP|HTTPS)_PROXY' | $SUDO tee -a $FILE_NODE_EXPORTER_ENV >/dev/null
+}
+
+# Write openrc service file
+create_openrc_service_file() {
+  LOG_FILE=/var/log/node_exporter.log
+
+  info "openrc: Creating service file $FILE_NODE_EXPORTER_SERVICE"
+  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+#!/sbin/openrc-run
+
+description="node_exporter"
+
+: ${NODE_EXPORTER_PIDFILE:=/var/run/node_exporter.pid}
+: ${NODE_EXPORTER_USER:=root}
+
+depend() {
+  need net
+  need localmount
+  use dns
+  after firewall
+}
+
+start() {
+  ebegin "Starting Node exporter"
+  start-stop-daemon --wait 1000 --background --start --exec \
+    $BIN_DIR/node_exporter \
+    --user $NODE_EXPORTER_USER \
+    --make-pidfile --pidfile $NODE_EXPORTER_PIDFILE \
+    -- && \
+  chown $NODE_EXPORTER_USER root $NODE_EXPORTER_PIDFILE
+  eend $?
+}
+
+stop() {
+  ebegin "Stopping Node exporter"
+  start-stop-daemon --wait 5000 --stop --exec \
+    $BIN_DIR/node_exporter \
+    --user $NODE_EXPORTER_USER \
+    --pidfile $NODE_EXPORTER_PIDFILE \
+    -s SIGQUIT
+  eend $?
+}
+EOF
+  $SUDO chmod 0755 $FILE_NODE_EXPORTER_SERVICE
+
+  $SUDO tee /etc/logrotate.d/node_exporter >/dev/null << EOF
+$LOG_FILE {
+	missingok
+	notifempty
+	copytruncate
+}
+EOF
+}
+
+# Write systemd service file
+create_systemd_service_file() {
+  info "systemd: Creating service file $FILE_NODE_EXPORTER_SERVICE"
+  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+[Unit]
+Description=Prometheus Node exporter
+After=local-fs.target network-online.target network.target
+Wants=local-fs.target network-online.target network.target
+[Service]
+Type=simple
+ExecStartPre=-/sbin/iptables -I INPUT 1 -p tcp --dport 9100 -s 127.0.0.1 -j ACCEPT
+ExecStartPre=-/sbin/iptables -I INPUT 3 -p tcp --dport 9100 -j DROP
+ExecStart=$BIN_DIR/node_exporter
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+# Write service file
+create_service_file() {
+  case $INIT_SYSTEM in
+    openrc) create_openrc_service_file ;;
+    systemd) create_systemd_service_file ;;
+    *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
+  esac
+}
+
+# Get hashes of the current Node exporter bin and service files
+get_installed_hashes() {
+  $SUDO sha256sum $BIN_DIR/k3s $FILE_NODE_EXPORTER_SERVICE $FILE_NODE_EXPORTER_ENV 2>&1 || true
+}
+
+# Enable systemd service
+systemd_enable() {
+  info "systemd: Enabling node_exporter unit"
+  $SUDO systemctl enable $FILE_NODE_EXPORTER_SERVICE >/dev/null
+  $SUDO systemctl daemon-reload >/dev/null
+}
+# Start systemd service
+systemd_start() {
+  info "systemd: Starting node_exporter"
+  $SUDO systemctl restart node_exporter
+}
+
+# Enable openrc service
+openrc_enable() {
+    info "openrc: Enabling node-exporter service for default runlevel"
+    $SUDO rc-update add node_exporter default >/dev/null
+}
+# Start openrc service
+openrc_start() {
+  info "openrc: Starting node_exporter"
+  $SUDO $FILE_NODE_EXPORTER_SERVICE restart
+}
+
+# Startup service
+service_enable_and_start() {
+  [ "$INSTALL_NODE_EXPORTER_SKIP_ENABLE" = true ] && return
+  case $INIT_SYSTEM in
+    openrc) openrc_enable ;;
+    systemd) systemd_enable ;;
+    *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
+  esac
+  [ "$INSTALL_NODE_EXPORTER_SKIP_START" = true ] && return
+  POST_INSTALL_HASHES=$(get_installed_hashes)
+  if [ "$PRE_INSTALL_HASHES" = "$POST_INSTALL_HASHES" ] && [ "$INSTALL_NODE_EXPORTER_FORCE_RESTART" != true ]; then
+    info 'No change detected so skipping service start'
+    return
+  fi
+  case $INIT_SYSTEM in
+    openrc) openrc_start ;;
+    systemd) systemd_start ;;
+    *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
+  esac
+  return 0
+}
 
 # ================
 # MAIN
@@ -343,4 +578,9 @@ eval set -- "$(escape "${INSTALL_NODE_EXPORTER_EXEC}") $(quote "$@")"
   verify_system
   setup_env "$@"
   download_and_verify
+  create_killall
+  create_uninstall
+  systemd_disable
+  create_env_file
+  service_enable_and_start
 }
