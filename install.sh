@@ -1,25 +1,48 @@
 #!/usr/bin/env sh
-# MIT License
+
+# Usage:
+#   curl ... | ENV_VAR=... sh -
+#       or
+#   ENV_VAR=... ./install.sh
 #
-# Copyright (c) 2022-2022 Carlo Corradini
+# Example:
+#   Installing Node exporter enabling only os collector:
+#     curl ... | INSTALL_NODE_EXPORTER="--collector.disable-defaults --collector.os" sh -
+#   Installing Node exporter enabling only os collector:
+#     curl ... | sh -s - --collector.disable-defaults --collector.os
 #
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
+# Environment variables:
+#   - INSTALL_NODE_EXPORTER_SKIP_DOWNLOAD
+#     If set to true will not download Node exporter hash or binary
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+#   - INSTALL_NODE_EXPORTER_FORCE_RESTART
+#     If set to true will always restart the Node exporter service
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+#   - INSTALL_NODE_EXPORTER_SKIP_ENABLE
+#     If set to true will not enable or start Node exporter service
+#
+#   - INSTALL_NODE_EXPORTER_SKIP_START
+#     If set to true will not start Node exporter service
+#
+#   - INSTALL_NODE_EXPORTER_VERSION
+#     Version of Node exporter to download from GitHub
+#
+#   - INSTALL_NODE_EXPORTER_BIN_DIR
+#     Directory to install Node exporter binary, and uninstall script to, or use
+#     /usr/local/bin as the default
+#
+#   - INSTALL_NODE_EXPORTER_SYSTEMD_DIR
+#     Directory to install systemd service files to, or use
+#     /etc/systemd/system as the default
+#
+#   - INSTALL_NODE_EXPORTER_EXEC or script arguments
+#     Command with flags to use for launching Node exporter service
+#
+#     The following commands result in the same behavior:
+#       curl ... | INSTALL_NODE_EXPORTER_EXEC="--collector.disable-defaults --collector.os" sh -s -
+#       curl ... | INSTALL_NODE_EXPORTER_EXEC="--collector.disable-defaults" sh -s - --collector.os
+#       curl ... | sh -s - --collector.disable-defaults --collector.os
+#
 
 # Fail on error
 set -o errexit
@@ -120,8 +143,8 @@ setup_env() {
 
   # Set related files from system name
   SERVICE_NODE_EXPORTER=node_exporter.service
-  UNINSTALL_NODE_EXPORTER_SH=${UNINSTALL_NODE_EXPORTER_SH:-$BIN_DIR/node_exporter.uninstall.sh}
-  KILLALL_NODE_EXPORTER_SH=${KILLALL_NODE_EXPORTER_SH:-$BIN_DIR/node_exporter.killall.sh}
+  UNINSTALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.uninstall.sh
+  KILLALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.killall.sh
 
   # Use service or environment location depending on systemd/openrc
   case $INIT_SYSTEM in
@@ -264,6 +287,20 @@ verify_system() {
   verify_downloader_cmd curl wget
 }
 
+# Check if skip download environment variable set
+can_skip_download() {
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_DOWNLOAD" != true ]; then
+    return 1
+  fi
+}
+
+# Verify an executable Node exporter binary is installed
+verify_k3s_is_executable() {
+  if [ ! -x $BIN_DIR/node_exporter ]; then
+    fatal "Executable Node exporter binary not found at '$BIN_DIR/node_exporter'"
+  fi
+}
+
 # Create temporary directory and cleanup
 setup_tmp() {
   TMP_DIR=$(mktemp -d -t node_exporter.XXXXXXXX)
@@ -377,6 +414,12 @@ setup_binary() {
 
 # Download and verify
 download_and_verify() {
+  if can_skip_download; then
+    info 'Skipping Node exporter download and verify'
+    verify_node_exporter_is_executable
+    return
+  fi
+
   setup_tmp
   get_release_version
 
