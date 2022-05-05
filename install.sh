@@ -572,7 +572,7 @@ systemd_start() {
 
 # Enable openrc service
 openrc_enable() {
-    info "openrc: Enabling node-exporter service for default runlevel"
+    info "openrc: Enabling node_exporter service for default runlevel"
     $SUDO rc-update add node_exporter default >/dev/null
 }
 # Start openrc service
