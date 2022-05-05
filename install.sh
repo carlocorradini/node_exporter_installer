@@ -31,6 +31,8 @@ set -o noglob
 # ================
 # GitHub release URL
 GITHUB_URL=https://github.com/prometheus/node_exporter/releases
+# GitHub API URL
+GITHUB_API_URL=https://api.github.com/repos/prometheus/node_exporter/releases/latest
 
 # ================
 # LOGGER
@@ -63,6 +65,11 @@ escape() {
 
 # Define needed environment variables
 setup_env() {
+  # Command
+  _cmd_node_exporter=$1
+  shift
+  CMD_NODE_EXPORTER_EXEC="$_cmd_node_exporter$(quote_indent "$@")"
+
   # use sudo if not already root
   SUDO=sudo
   if [ "$(id -u)" -eq 0 ]; then
@@ -99,11 +106,9 @@ setup_env() {
     openrc)
       $SUDO mkdir -p /etc/node_exporter
       FILE_NODE_EXPORTER_SERVICE=/etc/init.d/node_exporter
-      FILE_NODE_EXPORTER_ENV=/etc/node_exporter/node_exporter.env
     ;;
     systemd)
       FILE_NODE_EXPORTER_SERVICE=$SYSTEMD_DIR/$SERVICE_NODE_EXPORTER
-      FILE_NODE_EXPORTER_ENV=$SYSTEMD_DIR/$SERVICE_NODE_EXPORTER.env
     ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
@@ -147,7 +152,7 @@ verify_arch() {
     s390x) ARCH=s390x ;;
     i386) ARCH=386 ;;
     # Not supported
-    *) fatal "Architecture $ARCH not supported" ;;
+    *) fatal "Architecture '$ARCH' not supported" ;;
   esac
 }
 # Verify Operating System
@@ -159,7 +164,7 @@ verify_os() {
     NetBSD) OS=netbsd ;;
     OpenBSD) OS=openbsd ;;
     # Not supported
-    *) fatal "OS $OS not supported" ;;
+    *) fatal "OS '$OS' not supported" ;;
   esac
 }
 
@@ -187,16 +192,16 @@ verify_arch_os() {
       esac
     ;;
     # Not supported
-    *) fatal "OS $OS not supported" ;;
+    *) fatal "OS '$OS' not supported" ;;
   esac
 
   # Not supported
-  fatal "Architecture $ARCH on OS $OS not supported";
+  fatal "Architecture '$ARCH' on OS '$OS' not supported";
 }
 
 # Verify command is installed
 verify_cmd() {
-  command -v "$1" >/dev/null 2>&1 || fatal "$1 not found"
+  command -v "$1" >/dev/null 2>&1 || fatal "Command '$1' not found"
 }
 
 # Verify downloader command is installed
@@ -217,12 +222,24 @@ verify_downloader_cmd() {
 
 # Verify system
 verify_system() {
+  # Init system
   verify_init_system
+  # Arch and OS
   verify_arch
   verify_os
   verify_arch_os
-  verify_cmd "tar"
-  verify_downloader_cmd "curl" "wget"
+  # Commands
+  verify_cmd chmod
+  verify_cmd chown
+  verify_cmd grep
+  verify_cmd mktemp
+  verify_cmd rm
+  verify_cmd sed
+  verify_cmd sha256sum
+  verify_cmd tar
+  verify_cmd tee
+  # Downloader
+  verify_downloader_cmd curl wget
 }
 
 # Create temporary directory and cleanup
@@ -248,17 +265,10 @@ get_release_version() {
     VERSION_NODE_EXPORTER=$INSTALL_NODE_EXPORTER_VERSION
   else
     info "Finding latest release"
-    _github_api_url=https://api.github.com/repos/prometheus/node_exporter/releases/latest
     case $DOWNLOADER in
-      curl)
-        VERSION_NODE_EXPORTER=$(curl -L -f -s -S $_github_api_url) || fatal "Download '$_github_api_url' failed"
-      ;;
-      wget)
-        VERSION_NODE_EXPORTER=$(wget -q -O - $_github_api_url 2>&1) || fatal "Download '$_github_api_url' failed"
-      ;;
-      *)
-        fatal "Invalid downloader '$DOWNLOADER'"
-      ;;
+      curl) VERSION_NODE_EXPORTER=$(curl -L -f -s -S $GITHUB_API_URL) || fatal "Download '$GITHUB_API_URL' failed" ;;
+      wget) VERSION_NODE_EXPORTER=$(wget -q -O - $GITHUB_API_URL 2>&1) || fatal "Download '$GITHUB_API_URL' failed" ;;
+      *) fatal "Invalid downloader '$DOWNLOADER'" ;;
     esac
     VERSION_NODE_EXPORTER=$(echo "$VERSION_NODE_EXPORTER" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
   fi
@@ -286,27 +296,29 @@ download() {
 
 # Download hash
 download_hash() {
-  HASH_URL=$GITHUB_URL/download/$VERSION_NODE_EXPORTER/sha256sums.txt
-  info "Downloading hash '$HASH_URL'"
-  download "$TMP_HASH" "$HASH_URL"
-  HASH_EXPECTED=$(grep " $RELEASE_ARCHIVE" "$TMP_HASH")
-  HASH_EXPECTED=${HASH_EXPECTED%%[[:blank:]]*}
+  _hash_url=$GITHUB_URL/download/$VERSION_NODE_EXPORTER/sha256sums.txt
+
+  info "Downloading hash '$_hash_url'"
+  download "$TMP_HASH" "$_hash_url"
+  HASH_ARCHIVE_EXPECTED=$(grep " $RELEASE_ARCHIVE" "$TMP_HASH")
+  HASH_ARCHIVE_EXPECTED=${HASH_ARCHIVE_EXPECTED%%[[:blank:]]*}
 }
 
 # Download archive
 download_archive() {
-  ARCHIVE_URL=$GITHUB_URL/download/$VERSION_NODE_EXPORTER/$RELEASE_ARCHIVE
-  info "Downloading archive '$ARCHIVE_URL'"
-  download "$TMP_ARCHIVE" "$ARCHIVE_URL"
+  _archive_url=$GITHUB_URL/download/$VERSION_NODE_EXPORTER/$RELEASE_ARCHIVE
+
+  info "Downloading archive '$_archive_url'"
+  download "$TMP_ARCHIVE" "$_archive_url"
+  HASH_ARCHIVE=$(sha256sum "$TMP_ARCHIVE")
+  HASH_ARCHIVE=${HASH_ARCHIVE%%[[:blank:]]*}
 }
 
 # Verify downloaded archive hash
 verify_archive() {
-  info "Verifying archive download"
-  HASH_ARCHIVE=$(sha256sum "$TMP_ARCHIVE")
-  HASH_ARCHIVE=${HASH_ARCHIVE%%[[:blank:]]*}
-  if [ "$HASH_EXPECTED" != "$HASH_ARCHIVE" ]; then
-    fatal "Download sha256 does not match '$HASH_EXPECTED', got '$HASH_ARCHIVE'"
+  info "Verifying archive download '$TMP_ARCHIVE'"
+  if [ "$HASH_ARCHIVE_EXPECTED" != "$HASH_ARCHIVE" ]; then
+    fatal "Download sha256 does not match '$HASH_ARCHIVE_EXPECTED', got '$HASH_ARCHIVE'"
   fi
 }
 
@@ -315,6 +327,7 @@ extract_archive() {
   info "Extracting archive '$TMP_ARCHIVE'"
   tar xzf "$TMP_ARCHIVE" -C "$TMP_DIR" --strip-components 1 "$RELEASE_NAME/node_exporter"
   mv "$TMP_DIR/node_exporter" "$TMP_BIN"
+
   info "Extracted binary '$TMP_BIN'"
   HASH_BIN_EXPECTED=$(sha256sum "$TMP_BIN")
   HASH_BIN_EXPECTED=${HASH_BIN_EXPECTED%%[[:blank:]]*}
@@ -323,9 +336,9 @@ extract_archive() {
 # Check hash against installed version
 installed_hash_matches() {
   if [ -x $BIN_DIR/node_exporter ]; then
-    HASH_INSTALLED=$(sha256sum $BIN_DIR/node_exporter)
-    HASH_INSTALLED=${HASH_INSTALLED%%[[:blank:]]*}
-    if [ "$HASH_BIN_EXPECTED" = "$HASH_INSTALLED" ]; then
+    _hash_bin_installed=$(sha256sum $BIN_DIR/node_exporter)
+    _hash_bin_installed=${_hash_bin_installed%%[[:blank:]]*}
+    if [ "$HASH_BIN_EXPECTED" = "$_hash_bin_installed" ]; then
       return 0
     fi
   fi
@@ -335,7 +348,7 @@ installed_hash_matches() {
 # Setup permissions and move binary to system directory
 setup_binary() {
   chmod 755 "$TMP_BIN"
-  info "Installing Node exporter to $BIN_DIR/node_exporter"
+  info "Installing Node exporter to '$BIN_DIR/node_exporter'"
   $SUDO chown root:root "$TMP_BIN"
   $SUDO mv -f "$TMP_BIN" "$BIN_DIR/node_exporter"
 }
@@ -367,10 +380,13 @@ create_killall() {
   $SUDO tee "$KILLALL_NODE_EXPORTER_SH" >/dev/null << \EOF
 #!/usr/bin/env sh
 [ $(id -u) -eq 0 ] || exec sudo $0 $@
+
 set -x
+
 for service in /etc/systemd/system/node_exporter.service; do
   [ -s $service ] && systemctl stop $(basename $service)
 done
+
 for service in /etc/init.d/node_exporter.service; do
   [ -x $service ] && $service stop
 done
@@ -395,7 +411,9 @@ create_uninstall() {
 #!/usr/bin/env sh
 set -x
 [ \$(id -u) -eq 0 ] || exec sudo \$0 \$@
+
 $KILLALL_NODE_EXPORTER_SH
+
 if command -v systemctl; then
   systemctl disable node_exporter
   systemctl reset-failed node_exporter
@@ -406,7 +424,6 @@ if command -v rc-update; then
 fi
 
 rm -f $FILE_NODE_EXPORTER_SERVICE
-rm -f $FILE_NODE_EXPORTER_ENV
 
 remove_uninstall() {
   rm -f $UNINSTALL_NODE_EXPORTER_SH
@@ -426,31 +443,17 @@ EOF
 systemd_disable() {
   $SUDO systemctl disable node_exporter >/dev/null 2>&1 || true
   $SUDO rm -f /etc/systemd/system/$SERVICE_NODE_EXPORTER || true
-  $SUDO rm -f /etc/systemd/system/$SERVICE_NODE_EXPORTER.env || true
-}
-
-# FIXME remove
-# Capture current env and create file containing k3s_ variables ---
-create_env_file() {
-  info "env: Creating environment file $FILE_NODE_EXPORTER_ENV"
-  $SUDO touch "$FILE_NODE_EXPORTER_ENV"
-  $SUDO chmod 0600 "$FILE_NODE_EXPORTER_ENV"
-  sh -c export | while read -r x v; do echo "$v"; done | grep -E '^(K3S|CONTAINERD)_' | $SUDO tee $FILE_NODE_EXPORTER_ENV >/dev/null
-  sh -c export | while read -r x v; do echo "$v"; done | grep -Ei '^(NO|HTTP|HTTPS)_PROXY' | $SUDO tee -a $FILE_NODE_EXPORTER_ENV >/dev/null
 }
 
 # Write openrc service file
 create_openrc_service_file() {
   LOG_FILE=/var/log/node_exporter.log
 
-  info "openrc: Creating service file $FILE_NODE_EXPORTER_SERVICE"
+  info "openrc: Creating service file '$FILE_NODE_EXPORTER_SERVICE'"
   $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 #!/sbin/openrc-run
 
-description="node_exporter"
-
-: ${NODE_EXPORTER_PIDFILE:=/var/run/node_exporter.pid}
-: ${NODE_EXPORTER_USER:=root}
+description="Node exporter"
 
 depend() {
   need net
@@ -459,26 +462,22 @@ depend() {
   after firewall
 }
 
-start() {
-  ebegin "Starting Node exporter"
-  start-stop-daemon --wait 1000 --background --start --exec \
-    $BIN_DIR/node_exporter \
-    --user $NODE_EXPORTER_USER \
-    --make-pidfile --pidfile $NODE_EXPORTER_PIDFILE \
-    -- && \
-  chown $NODE_EXPORTER_USER root $NODE_EXPORTER_PIDFILE
-  eend $?
-}
+supervisor=supervise-daemon
+name=node_exporter
+command="$BIN_DIR/node_exporter"
+command_args="$(escape_dq "$CMD_NODE_EXPORTER_EXEC")
+    >>$LOG_FILE 2>&1"
 
-stop() {
-  ebegin "Stopping Node exporter"
-  start-stop-daemon --wait 5000 --stop --exec \
-    $BIN_DIR/node_exporter \
-    --user $NODE_EXPORTER_USER \
-    --pidfile $NODE_EXPORTER_PIDFILE \
-    -s SIGQUIT
-  eend $?
-}
+output_log=$LOG_FILE
+error_log=$LOG_FILE
+
+pidfile="/var/run/node_exporter.pid"
+respawn_delay=5
+respawn_max=0
+
+set -o allexport
+if [ -f /etc/environment ]; then source /etc/environment; fi
+set +o allexport
 EOF
   $SUDO chmod 0755 $FILE_NODE_EXPORTER_SERVICE
 
@@ -493,19 +492,33 @@ EOF
 
 # Write systemd service file
 create_systemd_service_file() {
-  info "systemd: Creating service file $FILE_NODE_EXPORTER_SERVICE"
+  info "systemd: Creating service file '$FILE_NODE_EXPORTER_SERVICE'"
   $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 [Unit]
-Description=Prometheus Node exporter
+Description=Node exporter
+Documentation=https://github.com/prometheus/node_exporter
 After=local-fs.target network-online.target network.target
 Wants=local-fs.target network-online.target network.target
-[Service]
-Type=simple
-ExecStartPre=-/sbin/iptables -I INPUT 1 -p tcp --dport 9100 -s 127.0.0.1 -j ACCEPT
-ExecStartPre=-/sbin/iptables -I INPUT 3 -p tcp --dport 9100 -j DROP
-ExecStart=$BIN_DIR/node_exporter
+
 [Install]
 WantedBy=multi-user.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/%N
+EnvironmentFile=-/etc/sysconfig/%N
+KillMode=process
+Delegate=yes
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+TimeoutStartSec=0
+Restart=always
+RestartSec=5s
+ExecStartPre=-/sbin/iptables -I INPUT 1 -p tcp --dport 9100 -s 127.0.0.1 -j ACCEPT
+ExecStartPre=-/sbin/iptables -I INPUT 3 -p tcp --dport 9100 -j DROP
+ExecStart=$BIN_DIR/node_exporter \\
+    $CMD_NODE_EXPORTER_EXEC
 EOF
 }
 
@@ -520,7 +533,7 @@ create_service_file() {
 
 # Get hashes of the current Node exporter bin and service files
 get_installed_hashes() {
-  $SUDO sha256sum $BIN_DIR/k3s $FILE_NODE_EXPORTER_SERVICE $FILE_NODE_EXPORTER_ENV 2>&1 || true
+  $SUDO sha256sum $BIN_DIR/node_exporter $FILE_NODE_EXPORTER_SERVICE 2>&1 || true
 }
 
 # Enable systemd service
@@ -554,6 +567,7 @@ service_enable_and_start() {
     systemd) systemd_enable ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
+
   [ "$INSTALL_NODE_EXPORTER_SKIP_START" = true ] && return
   POST_INSTALL_HASHES=$(get_installed_hashes)
   if [ "$PRE_INSTALL_HASHES" = "$POST_INSTALL_HASHES" ] && [ "$INSTALL_NODE_EXPORTER_FORCE_RESTART" != true ]; then
@@ -565,6 +579,7 @@ service_enable_and_start() {
     systemd) systemd_start ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
+
   return 0
 }
 
@@ -572,7 +587,7 @@ service_enable_and_start() {
 # MAIN
 # ================
 # Re-evaluate args to include env command
-eval set -- "$(escape "${INSTALL_NODE_EXPORTER_EXEC}") $(quote "$@")"
+eval set -- "$(escape "$INSTALL_NODE_EXPORTER_EXEC") $(quote "$@")"
 # Run
 {
   verify_system
@@ -581,6 +596,5 @@ eval set -- "$(escape "${INSTALL_NODE_EXPORTER_EXEC}") $(quote "$@")"
   create_killall
   create_uninstall
   systemd_disable
-  create_env_file
   service_enable_and_start
 }
