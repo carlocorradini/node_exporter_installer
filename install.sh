@@ -347,7 +347,7 @@ verify_archive() {
 # Extract archive
 extract_archive() {
   info "Extracting archive '$TMP_ARCHIVE'"
-  tar xzf "$TMP_ARCHIVE" -C "$TMP_DIR" --strip-components 1 "$RELEASE_NAME/node_exporter"
+  tar xzf "$TMP_ARCHIVE" -C "$TMP_DIR" --strip-components 1 "$RELEASE_NAME/node_exporter" || fatal "Error extracting archive '$TMP_ARCHIVE'"
   mv "$TMP_DIR/node_exporter" "$TMP_BIN"
 
   info "Extracted binary '$TMP_BIN'"
@@ -389,7 +389,7 @@ download_and_verify() {
   extract_archive
 
   if installed_hash_matches; then
-    info 'Skipping binary download, installed Node exporter matches hash'
+    info 'Skipping binary setup, installed Node exporter matches hash'
     return
   fi
 
