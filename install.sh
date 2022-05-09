@@ -43,6 +43,8 @@
 #       curl ... | INSTALL_NODE_EXPORTER_EXEC="--collector.disable-defaults" sh -s - --collector.os
 #       curl ... | sh -s - --collector.disable-defaults --collector.os
 #
+#   - INSTALL_NODE_EXPORTER_SKIP_SERVICE_FIREWALL_RULES
+#     If set to true will not add iptables commands for firewall rules to the systemd service
 
 # Fail on error
 set -o errexit
@@ -538,12 +540,18 @@ depend() {
   use dns
   after firewall
 }
+EOF
 
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_SERVICE_FIREWALL_RULES" = true ]; then
+    $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 start_pre() {
   iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
   iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
 }
+EOF
+  fi
 
+  $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 supervisor=supervise-daemon
 name=node_exporter
 command="$BIN_DIR/node_exporter"
@@ -597,11 +605,16 @@ TasksMax=infinity
 TimeoutStartSec=0
 Restart=always
 RestartSec=5s
-ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
-ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -j DROP
 ExecStart=$BIN_DIR/node_exporter \\
     $CMD_NODE_EXPORTER_EXEC
 EOF
+
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_SERVICE_FIREWALL_RULES" = true ]; then
+    $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
+ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -j DROP
+EOF
+  fi
 }
 
 # Write service file
