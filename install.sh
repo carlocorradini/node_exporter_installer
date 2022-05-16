@@ -24,6 +24,9 @@
 #   - INSTALL_NODE_EXPORTER_SKIP_START
 #     If set to true will not start Node exporter service
 #
+#   - INSTALL_NODE_EXPORTER_SKIP_FIREWALL
+#     If set to true will not add iptables commands for firewall rules to the service
+#
 #   - INSTALL_NODE_EXPORTER_VERSION
 #     Version of Node exporter to download from GitHub
 #
@@ -43,8 +46,6 @@
 #       curl ... | INSTALL_NODE_EXPORTER_EXEC="--collector.disable-defaults" sh -s - --collector.os
 #       curl ... | sh -s - --collector.disable-defaults --collector.os
 #
-#   - INSTALL_NODE_EXPORTER_SKIP_SERVICE_FIREWALL_RULES
-#     If set to true will not add iptables commands for firewall rules to the systemd service
 
 # Fail on error
 set -o errexit
@@ -542,7 +543,7 @@ depend() {
 }
 EOF
 
-  if [ "$INSTALL_NODE_EXPORTER_SKIP_SERVICE_FIREWALL_RULES" = true ]; then
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_FIREWALL" = true ]; then
     $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 start_pre() {
   iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
@@ -609,7 +610,7 @@ ExecStart=$BIN_DIR/node_exporter \\
     $CMD_NODE_EXPORTER_EXEC
 EOF
 
-  if [ "$INSTALL_NODE_EXPORTER_SKIP_SERVICE_FIREWALL_RULES" = true ]; then
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_FIREWALL" = true ]; then
     $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
 ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -j DROP
