@@ -279,6 +279,13 @@ verify_downloader_cmd() {
   fatal "Unable to find any downloader command in list '$*'"
 }
 
+# Check if skip download environment variable set
+can_skip_download() {
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_DOWNLOAD" != true ]; then
+    return 1
+  fi
+}
+
 # Verify system
 verify_system() {
   # Init system
@@ -299,14 +306,7 @@ verify_system() {
   verify_cmd tar
   verify_cmd tee
   # Downloader
-  verify_downloader_cmd curl wget
-}
-
-# Check if skip download environment variable set
-can_skip_download() {
-  if [ "$INSTALL_NODE_EXPORTER_SKIP_DOWNLOAD" != true ]; then
-    return 1
-  fi
+  can_skip_download || verify_downloader_cmd curl wget
 }
 
 # Verify an executable Node exporter binary is installed
