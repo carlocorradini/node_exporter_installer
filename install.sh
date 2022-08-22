@@ -655,6 +655,14 @@ openrc_start() {
   $SUDO $FILE_NODE_EXPORTER_SERVICE restart
 }
 
+# relabel to executable if SElinux is installed
+selinux() {
+  if getenforce > /dev/null; then
+     semanage fcontext -D $BIN_DIR/node_exporter
+     semanage fcontext -a -t bin_t $BIN_DIR/node_exporter && restorecon -v $BIN_DIR/node_exporter
+  fi
+}
+
 # Startup service
 service_enable_and_start() {
   [ "$INSTALL_NODE_EXPORTER_SKIP_ENABLE" = true ] && return
@@ -693,5 +701,6 @@ eval set -- "$(escape "$INSTALL_NODE_EXPORTER_EXEC") $(quote "$@")"
   create_uninstall
   systemd_disable
   create_service_file
+  selinux
   service_enable_and_start
 }
