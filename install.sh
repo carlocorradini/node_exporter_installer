@@ -25,7 +25,7 @@
 #     If set to true will not start Node exporter service
 #
 #   - INSTALL_NODE_EXPORTER_SKIP_FIREWALL
-#     If set to true will not add iptables commands for firewall rules to the service
+#     If set to true will not add firewall rules
 #
 #   - INSTALL_NODE_EXPORTER_VERSION
 #     Version of Node exporter to download from GitHub
@@ -176,23 +176,6 @@ setup_env() {
   PRE_INSTALL_HASHES=$(get_installed_hashes)
 }
 
-# Verify init system
-verify_init_system() {
-  # OpenRC
-  if [ -x /sbin/openrc-run ]; then
-    INIT_SYSTEM=openrc
-    return
-  fi
-  # systemd
-  if [ -x /bin/systemctl ] || type systemctl > /dev/null 2>&1; then
-    INIT_SYSTEM=systemd
-    return
-  fi
-
-  # Not supported
-  fatal 'No supported init system found (OpenRC or systemd)'
-}
-
 # Verify architecture
 verify_arch() {
   ARCH=$(uname -m)
@@ -214,6 +197,7 @@ verify_arch() {
     *) fatal "Architecture '$ARCH' not supported" ;;
   esac
 }
+
 # Verify Operating System
 verify_os() {
   OS=$(uname -s)
@@ -258,9 +242,42 @@ verify_arch_os() {
   fatal "Architecture '$ARCH' on OS '$OS' not supported";
 }
 
+# Verify init system
+verify_init_system() {
+  # OpenRC
+  if [ -x /sbin/openrc-run ]; then
+    INIT_SYSTEM=openrc
+    return
+  fi
+  # systemd
+  if [ -x /bin/systemctl ] || type systemctl > /dev/null 2>&1; then
+    INIT_SYSTEM=systemd
+    return
+  fi
+
+  # Not supported
+  fatal 'No supported init system found (OpenRC or systemd)'
+}
+
 # Verify command is installed
 verify_cmd() {
   command -v "$1" >/dev/null 2>&1 || fatal "Command '$1' not found"
+}
+
+# Verify firewall
+verify_firewall_cmd() {
+  # Cycle firewall commands
+  for _cmd in "$@"; do
+    # Check if exists
+    if command -v "$_cmd" >/dev/null 2>&1; then
+      # Found
+      FIREWALL=$_cmd
+      return
+    fi
+  done
+
+  # Not found
+  fatal "Unable to find any firewall command in list '$*'"
 }
 
 # Verify downloader command is installed
@@ -279,6 +296,13 @@ verify_downloader_cmd() {
   fatal "Unable to find any downloader command in list '$*'"
 }
 
+# Check if skip firewall environment variable set
+can_skip_firewall() {
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_FIREWALL" != true ]; then
+    return 1
+  fi
+}
+
 # Check if skip download environment variable set
 can_skip_download() {
   if [ "$INSTALL_NODE_EXPORTER_SKIP_DOWNLOAD" != true ]; then
@@ -288,8 +312,6 @@ can_skip_download() {
 
 # Verify system
 verify_system() {
-  # Init system
-  verify_init_system
   # Arch and OS
   verify_arch
   verify_os
@@ -298,13 +320,16 @@ verify_system() {
   verify_cmd chmod
   verify_cmd chown
   verify_cmd grep
-  verify_cmd iptables
   verify_cmd mktemp
   verify_cmd rm
   verify_cmd sed
   verify_cmd sha256sum
   verify_cmd tar
   verify_cmd tee
+  # Init system
+  verify_init_system
+  # Firewall
+  can_skip_firewall || verify_firewall_cmd firewall-cmd ufw iptables
   # Downloader
   can_skip_download || verify_downloader_cmd curl wget
 }
@@ -525,6 +550,27 @@ systemd_disable() {
   $SUDO rm -f /etc/systemd/system/$SERVICE_NODE_EXPORTER || true
 }
 
+# Compose firewall rule
+firewall_rule() {
+  case $FIREWALL in
+    firewall-cmd)
+      printf "%s\n%s\n" \
+      "firewall-cmd --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
+      "firewall-cmd --reload"
+    ;;
+    ufw)
+      printf "%s\n" \
+      "ufw allow $NODE_EXPORTER_PORT/tcp"
+    ;;
+    iptables)
+      printf "%s\n%s\n" \
+      "iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -j ACCEPT" \
+      "iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP"
+    ;;
+    *) fatal "Unknown firewall '$FIREWALL'" ;;
+  esac
+}
+
 # Write openrc service file
 create_openrc_service_file() {
   LOG_FILE=/var/log/node_exporter.log
@@ -543,11 +589,11 @@ depend() {
 }
 EOF
 
-  if [ "$INSTALL_NODE_EXPORTER_SKIP_FIREWALL" = true ]; then
+  if ! can_skip_firewall; then
+    _firewall=$(firewall_rule)
     $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
 start_pre() {
-  iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
-  iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP
+  $_firewall
 }
 EOF
   fi
@@ -610,10 +656,19 @@ ExecStart=$BIN_DIR/node_exporter \\
     $CMD_NODE_EXPORTER_EXEC
 EOF
 
-  if [ "$INSTALL_NODE_EXPORTER_SKIP_FIREWALL" = true ]; then
+  if ! can_skip_firewall; then
+    _firewall=""
+
+    # Prepend 'ExecStartPre=-' to each rule
+    while read -r _rule; do
+      _firewall="$_firewall
+    ExecStartPre=-$_rule"
+    done << EOF
+$(firewall_rule)
+EOF
+
     $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
-ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -s 127.0.0.1 -j ACCEPT
-ExecStartPre=-iptables -I INPUT -p tcp --dport $NODE_EXPORTER_PORT -j DROP
+$_firewall
 EOF
   fi
 }
