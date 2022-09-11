@@ -722,6 +722,9 @@ openrc_start() {
 
 # relabel to executable if SElinux is installed
 setup_selinux() {
+  if can_skip_selinux; then
+    return
+  fi
   if type -p getenforce > /dev/null 2>&1; then
     if type -p semanage > /dev/null 2>&1; then
        semanage fcontext -D "$BIN_DIR/node_exporter"
@@ -766,7 +769,7 @@ eval set -- "$(escape "$INSTALL_NODE_EXPORTER_EXEC") $(quote "$@")"
   verify_system
   setup_env "$@"
   download_and_verify
-  can_skip_selinux || setup_selinux
+  setup_selinux
   create_killall
   create_uninstall
   systemd_disable
