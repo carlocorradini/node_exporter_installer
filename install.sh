@@ -727,7 +727,7 @@ setup_selinux() {
        semanage fcontext -D "$BIN_DIR/node_exporter"
        semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter" && restorecon -v "$BIN_DIR/node_exporter"
     else
-       info "Cannot setup SELinux context for binary \"$BIN_DIR/node_exporter\". Please install policycoreutils-python package."
+       info "Cannot setup SELinux context for binary '$BIN_DIR/node_exporter'. Please install 'policycoreutils-python-utils' package"
     fi
   fi
 }
