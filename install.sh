@@ -28,7 +28,7 @@
 #     If set to true will not add firewall rules
 #
 #   - INSTALL_NODE_EXPORTER_SKIP_SELINUX
-#     If set to true will not change Seliunx context for binary
+#     If set to true will not change SELinux context for binary
 #
 #   - INSTALL_NODE_EXPORTER_VERSION
 #     Version of Node exporter to download from GitHub
