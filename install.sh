@@ -27,6 +27,9 @@
 #   - INSTALL_NODE_EXPORTER_SKIP_FIREWALL
 #     If set to true will not add firewall rules
 #
+#   - INSTALL_NODE_EXPORTER_SKIP_SELINUX
+#     If set to true will not change SELinux context for binary
+#
 #   - INSTALL_NODE_EXPORTER_VERSION
 #     Version of Node exporter to download from GitHub
 #
@@ -126,7 +129,7 @@ setup_env() {
 
   # Use binary install directory if defined or create default
   if [ -n "$INSTALL_NODE_EXPORTER_BIN_DIR" ]; then
-    BIN_DIR=$INSTALL_NODE_EXPORTER_BIN_DIR
+    BIN_DIR="$INSTALL_NODE_EXPORTER_BIN_DIR"
   else
     # Use /usr/local/bin if root can write to it, otherwise use /opt/bin if it exists
     BIN_DIR=/usr/local/bin
@@ -139,8 +142,8 @@ setup_env() {
 
   # Set related files from system name
   SERVICE_NODE_EXPORTER=node_exporter.service
-  UNINSTALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.uninstall.sh
-  KILLALL_NODE_EXPORTER_SH=$BIN_DIR/node_exporter.killall.sh
+  UNINSTALL_NODE_EXPORTER_SH="$BIN_DIR/node_exporter.uninstall.sh"
+  KILLALL_NODE_EXPORTER_SH="$BIN_DIR/node_exporter.killall.sh"
 
   # Extract port when address is specified or use default
   if test "${CMD_NODE_EXPORTER_EXEC#*"--web.listen-address="}" != "$CMD_NODE_EXPORTER_EXEC"; then
@@ -303,6 +306,13 @@ can_skip_firewall() {
   fi
 }
 
+# Chekc if skip selinux environment variable set
+can_skip_selinux() {
+  if [ "$INSTALL_NODE_EXPORTER_SKIP_SELINUX" != true ]; then
+    return 1
+  fi
+}
+
 # Check if skip download environment variable set
 can_skip_download() {
   if [ "$INSTALL_NODE_EXPORTER_SKIP_DOWNLOAD" != true ]; then
@@ -336,7 +346,7 @@ verify_system() {
 
 # Verify an executable Node exporter binary is installed
 verify_node_exporter_is_executable() {
-  if [ ! -x $BIN_DIR/node_exporter ]; then
+  if [ ! -x "$BIN_DIR/node_exporter" ]; then
     fatal "Executable Node exporter binary not found at '$BIN_DIR/node_exporter'"
   fi
 }
@@ -344,9 +354,9 @@ verify_node_exporter_is_executable() {
 # Create temporary directory and cleanup
 setup_tmp() {
   TMP_DIR=$(mktemp -d -t node_exporter.XXXXXXXX)
-  TMP_HASH=$TMP_DIR/node_exporter.hash
-  TMP_ARCHIVE=$TMP_DIR/node_exporter.archive
-  TMP_BIN=$TMP_DIR/node_exporter.bin
+  TMP_HASH="$TMP_DIR/node_exporter.hash"
+  TMP_ARCHIVE="$TMP_DIR/node_exporter.archive"
+  TMP_BIN="$TMP_DIR/node_exporter.bin"
 
   cleanup() {
     _exit_code=$?
@@ -434,8 +444,8 @@ extract_archive() {
 
 # Check hash against installed version
 installed_hash_matches() {
-  if [ -x $BIN_DIR/node_exporter ]; then
-    _hash_bin_installed=$(sha256sum $BIN_DIR/node_exporter)
+  if [ -x "$BIN_DIR/node_exporter" ]; then
+    _hash_bin_installed=$(sha256sum "$BIN_DIR/node_exporter")
     _hash_bin_installed=${_hash_bin_installed%%[[:blank:]]*}
     if [ "$HASH_BIN_EXPECTED" = "$_hash_bin_installed" ]; then
       return 0
@@ -464,7 +474,7 @@ download_and_verify() {
   get_release_version
 
   RELEASE_NAME=node_exporter-$(echo "$VERSION_NODE_EXPORTER" | sed 's/^v//').$OS-$ARCH
-  RELEASE_ARCHIVE=$RELEASE_NAME.tar.gz
+  RELEASE_ARCHIVE="$RELEASE_NAME.tar.gz"
 
   download_hash
   download_archive
@@ -528,17 +538,17 @@ if command -v rc-update; then
   rc-update delete node_exporter default
 fi
 
-rm -f $FILE_NODE_EXPORTER_SERVICE
+rm -f "$FILE_NODE_EXPORTER_SERVICE"
 
 remove_uninstall() {
-  rm -f $UNINSTALL_NODE_EXPORTER_SH
+  rm -f "$UNINSTALL_NODE_EXPORTER_SH"
 }
 trap remove_uninstall EXIT
 
 rm -rf /etc/node_exporter
 rm -rf /run/node_exporter
-rm -f $BIN_DIR/node_exporter
-rm -f $KILLALL_NODE_EXPORTER_SH
+rm -f "$BIN_DIR/node_exporter"
+rm -f "$KILLALL_NODE_EXPORTER_SH"
 EOF
   $SUDO chmod 755 "$UNINSTALL_NODE_EXPORTER_SH"
   $SUDO chown root:root "$UNINSTALL_NODE_EXPORTER_SH"
@@ -547,7 +557,7 @@ EOF
 # Disable current service if loaded
 systemd_disable() {
   $SUDO systemctl disable node_exporter >/dev/null 2>&1 || true
-  $SUDO rm -f /etc/systemd/system/$SERVICE_NODE_EXPORTER || true
+  $SUDO rm -f "/etc/systemd/system/$SERVICE_NODE_EXPORTER" || true
 }
 
 # Compose firewall rule
@@ -616,7 +626,7 @@ set -o allexport
 if [ -f /etc/environment ]; then source /etc/environment; fi
 set +o allexport
 EOF
-  $SUDO chmod 0755 $FILE_NODE_EXPORTER_SERVICE
+  $SUDO chmod 0755 "$FILE_NODE_EXPORTER_SERVICE"
 
   $SUDO tee /etc/logrotate.d/node_exporter >/dev/null << EOF
 $LOG_FILE {
@@ -684,13 +694,13 @@ create_service_file() {
 
 # Get hashes of the current Node exporter bin and service files
 get_installed_hashes() {
-  $SUDO sha256sum $BIN_DIR/node_exporter $FILE_NODE_EXPORTER_SERVICE 2>&1 || true
+  $SUDO sha256sum "$BIN_DIR/node_exporter" "$FILE_NODE_EXPORTER_SERVICE" 2>&1 || true
 }
 
 # Enable systemd service
 systemd_enable() {
   info "systemd: Enabling node_exporter unit"
-  $SUDO systemctl enable $FILE_NODE_EXPORTER_SERVICE >/dev/null
+  $SUDO systemctl enable "$FILE_NODE_EXPORTER_SERVICE" >/dev/null
   $SUDO systemctl daemon-reload >/dev/null
 }
 # Start systemd service
@@ -707,7 +717,22 @@ openrc_enable() {
 # Start openrc service
 openrc_start() {
   info "openrc: Starting node_exporter"
-  $SUDO $FILE_NODE_EXPORTER_SERVICE restart
+  $SUDO "$FILE_NODE_EXPORTER_SERVICE" restart
+}
+
+# relabel to executable if SElinux is installed
+setup_selinux() {
+  if can_skip_selinux; then
+    return
+  fi
+  if type -p getenforce > /dev/null 2>&1; then
+    if type -p semanage > /dev/null 2>&1; then
+       semanage fcontext -D "$BIN_DIR/node_exporter"
+       semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter" && restorecon -v "$BIN_DIR/node_exporter"
+    else
+       info "Cannot setup SELinux context for binary '$BIN_DIR/node_exporter'. Please install 'policycoreutils-python-utils' package"
+    fi
+  fi
 }
 
 # Startup service
@@ -744,6 +769,7 @@ eval set -- "$(escape "$INSTALL_NODE_EXPORTER_EXEC") $(quote "$@")"
   verify_system
   setup_env "$@"
   download_and_verify
+  setup_selinux
   create_killall
   create_uninstall
   systemd_disable
