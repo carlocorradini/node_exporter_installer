@@ -15,8 +15,12 @@
     "url": "https://github.com/carlocorradini/node_exporter_installer/issues"
   },
   "scripts": {
-    "check": "npx markdownlint \"**/*.md\"",
-    "fix": "npx markdownlint --fix \"**/*.md\"",
+    "check": "npx npm-run-all --npm-path npm --serial check:*",
+    "check:format": "npx prettier --check .",
+    "check:markdown": "npx markdownlint \"**/*.md\"",
+    "fix": "npx npm-run-all --npm-path npm --serial fix:*",
+    "fix:format": "npx prettier --write .",
+    "fix:markdown": "npx markdownlint --fix \"**/*.md\"",
     "prepare": "npx husky install"
   },
   "devDependencies": {
@@ -24,6 +28,9 @@
     "@commitlint/config-conventional": "^17.1.0",
     "husky": "^8.0.1",
     "lint-staged": "^13.0.3",
-    "markdownlint-cli": "^0.32.2"
+    "markdownlint-cli": "^0.32.2",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.7.1",
+    "prettier-plugin-sh": "^0.12.8"
   }
 }

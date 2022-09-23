@@ -109,14 +109,14 @@ escape_dq() {
 setup_env() {
   # Command args
   case "$1" in
-    (-*|"")
+    -* | "")
       _cmd_node_exporter=
-    ;;
-    # Command provided
-    (*)
+      ;;
+      # Command provided
+    *)
       _cmd_node_exporter=$1
       shift
-    ;;
+      ;;
   esac
 
   CMD_NODE_EXPORTER_EXEC="$_cmd_node_exporter$(quote_indent "$@")"
@@ -168,10 +168,10 @@ setup_env() {
     openrc)
       $SUDO mkdir -p /etc/node_exporter
       FILE_NODE_EXPORTER_SERVICE=/etc/init.d/node_exporter
-    ;;
+      ;;
     systemd)
       FILE_NODE_EXPORTER_SERVICE=$SYSTEMD_DIR/$SERVICE_NODE_EXPORTER
-    ;;
+      ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
 
@@ -183,8 +183,8 @@ setup_env() {
 verify_arch() {
   ARCH=$(uname -m)
   case $ARCH in
-    amd64|x86_64) ARCH=amd64 ;;
-    arm64|aarch64) ARCH=arm64 ;;
+    amd64 | x86_64) ARCH=amd64 ;;
+    arm64 | aarch64) ARCH=arm64 ;;
     armv5*) ARCH=armv5 ;;
     armv6*) ARCH=armv6 ;;
     armv7*) ARCH=armv7 ;;
@@ -219,30 +219,30 @@ verify_arch_os() {
   case $OS in
     linux)
       case $ARCH in
-        amd64|arm64|armv5|armv6|armv7|mips|mipsle|mips64|mips64le|ppc64|ppc64le|s390x|386) return ;;
+        amd64 | arm64 | armv5 | armv6 | armv7 | mips | mipsle | mips64 | mips64le | ppc64 | ppc64le | s390x | 386) return ;;
       esac
-    ;;
+      ;;
     darwin)
       case $ARCH in
-        amd64|arm64) return ;;
+        amd64 | arm64) return ;;
       esac
-    ;;
+      ;;
     netbsd)
       case $ARCH in
-        386|amd64) return ;;
+        386 | amd64) return ;;
       esac
-    ;;
+      ;;
     openbsd)
       case $ARCH in
         amd64) return ;;
       esac
-    ;;
+      ;;
     # Not supported
     *) fatal "OS '$OS' not supported" ;;
   esac
 
   # Not supported
-  fatal "Architecture '$ARCH' on OS '$OS' not supported";
+  fatal "Architecture '$ARCH' on OS '$OS' not supported"
 }
 
 # Verify init system
@@ -264,7 +264,7 @@ verify_init_system() {
 
 # Verify command is installed
 verify_cmd() {
-  command -v "$1" >/dev/null 2>&1 || fatal "Command '$1' not found"
+  command -v "$1" > /dev/null 2>&1 || fatal "Command '$1' not found"
 }
 
 # Verify firewall
@@ -272,7 +272,7 @@ verify_firewall_cmd() {
   # Cycle firewall commands
   for _cmd in "$@"; do
     # Check if exists
-    if command -v "$_cmd" >/dev/null 2>&1; then
+    if command -v "$_cmd" > /dev/null 2>&1; then
       # Found
       FIREWALL=$_cmd
       return
@@ -288,7 +288,7 @@ verify_downloader_cmd() {
   # Cycle downloader commands
   for _cmd in "$@"; do
     # Check if exists
-    if command -v "$_cmd" >/dev/null 2>&1; then
+    if command -v "$_cmd" > /dev/null 2>&1; then
       # Found
       DOWNLOADER=$_cmd
       return
@@ -393,13 +393,13 @@ download() {
   case $DOWNLOADER in
     curl)
       curl --fail --silent --location --output "$1" "$2" || fatal "Download '$2' failed"
-    ;;
+      ;;
     wget)
       wget --quiet --output-document="$1" "$2" || fatal "Download '$2' failed"
-    ;;
+      ;;
     *)
       fatal "Unknown downloader '$DOWNLOADER'"
-    ;;
+      ;;
   esac
 }
 
@@ -492,7 +492,7 @@ download_and_verify() {
 # Create killall script
 create_killall() {
   info "Creating killall script '$KILLALL_NODE_EXPORTER_SH'"
-  $SUDO tee "$KILLALL_NODE_EXPORTER_SH" >/dev/null << \EOF
+  $SUDO tee "$KILLALL_NODE_EXPORTER_SH" > /dev/null << \EOF
 #!/usr/bin/env sh
 [ $(id -u) -eq 0 ] || exec sudo $0 $@
 
@@ -522,7 +522,7 @@ EOF
 # Create uninstall script
 create_uninstall() {
   info "Creating uninstall script '$UNINSTALL_NODE_EXPORTER_SH'"
-  $SUDO tee "$UNINSTALL_NODE_EXPORTER_SH" >/dev/null << EOF
+  $SUDO tee "$UNINSTALL_NODE_EXPORTER_SH" > /dev/null << EOF
 #!/usr/bin/env sh
 set -x
 [ \$(id -u) -eq 0 ] || exec sudo \$0 \$@
@@ -556,7 +556,7 @@ EOF
 
 # Disable current service if loaded
 systemd_disable() {
-  $SUDO systemctl disable node_exporter >/dev/null 2>&1 || true
+  $SUDO systemctl disable node_exporter > /dev/null 2>&1 || true
   $SUDO rm -f "/etc/systemd/system/$SERVICE_NODE_EXPORTER" || true
 }
 
@@ -565,18 +565,18 @@ firewall_rule() {
   case $FIREWALL in
     firewall-cmd)
       printf "%s\n%s\n" \
-      "firewall-cmd --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
-      "firewall-cmd --reload"
-    ;;
+        "firewall-cmd --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
+        "firewall-cmd --reload"
+      ;;
     ufw)
       printf "%s\n" \
-      "ufw allow $NODE_EXPORTER_PORT/tcp"
-    ;;
+        "ufw allow $NODE_EXPORTER_PORT/tcp"
+      ;;
     iptables)
       printf "%s\n%s\n" \
-      "iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -j ACCEPT" \
-      "iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP"
-    ;;
+        "iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -j ACCEPT" \
+        "iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP"
+      ;;
     *) fatal "Unknown firewall '$FIREWALL'" ;;
   esac
 }
@@ -586,7 +586,7 @@ create_openrc_service_file() {
   LOG_FILE=/var/log/node_exporter.log
 
   info "openrc: Creating service file '$FILE_NODE_EXPORTER_SERVICE'"
-  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" > /dev/null << EOF
 #!/sbin/openrc-run
 
 description="Node exporter"
@@ -601,14 +601,14 @@ EOF
 
   if ! can_skip_firewall; then
     _firewall=$(firewall_rule)
-    $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+    $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" > /dev/null << EOF
 start_pre() {
   $_firewall
 }
 EOF
   fi
 
-  $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+  $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" > /dev/null << EOF
 supervisor=supervise-daemon
 name=node_exporter
 command="$BIN_DIR/node_exporter"
@@ -628,7 +628,7 @@ set +o allexport
 EOF
   $SUDO chmod 0755 "$FILE_NODE_EXPORTER_SERVICE"
 
-  $SUDO tee /etc/logrotate.d/node_exporter >/dev/null << EOF
+  $SUDO tee /etc/logrotate.d/node_exporter > /dev/null << EOF
 $LOG_FILE {
 	missingok
 	notifempty
@@ -640,7 +640,7 @@ EOF
 # Write systemd service file
 create_systemd_service_file() {
   info "systemd: Creating service file '$FILE_NODE_EXPORTER_SERVICE'"
-  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" > /dev/null << EOF
 [Unit]
 Description=Node exporter
 Documentation=https://github.com/prometheus/node_exporter
@@ -677,7 +677,7 @@ EOF
 $(firewall_rule)
 EOF
 
-    $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" >/dev/null << EOF
+    $SUDO tee -a "$FILE_NODE_EXPORTER_SERVICE" > /dev/null << EOF
 $_firewall
 EOF
   fi
@@ -700,8 +700,8 @@ get_installed_hashes() {
 # Enable systemd service
 systemd_enable() {
   info "systemd: Enabling node_exporter unit"
-  $SUDO systemctl enable "$FILE_NODE_EXPORTER_SERVICE" >/dev/null
-  $SUDO systemctl daemon-reload >/dev/null
+  $SUDO systemctl enable "$FILE_NODE_EXPORTER_SERVICE" > /dev/null
+  $SUDO systemctl daemon-reload > /dev/null
 }
 # Start systemd service
 systemd_start() {
@@ -711,8 +711,8 @@ systemd_start() {
 
 # Enable openrc service
 openrc_enable() {
-    info "openrc: Enabling node_exporter service for default runlevel"
-    $SUDO rc-update add node_exporter default >/dev/null
+  info "openrc: Enabling node_exporter service for default runlevel"
+  $SUDO rc-update add node_exporter default > /dev/null
 }
 # Start openrc service
 openrc_start() {
@@ -727,10 +727,10 @@ setup_selinux() {
   fi
   if type -p getenforce > /dev/null 2>&1; then
     if type -p semanage > /dev/null 2>&1; then
-       semanage fcontext -D "$BIN_DIR/node_exporter"
-       semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter" && restorecon -v "$BIN_DIR/node_exporter"
+      semanage fcontext -D "$BIN_DIR/node_exporter"
+      semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter" && restorecon -v "$BIN_DIR/node_exporter"
     else
-       info "Cannot setup SELinux context for binary '$BIN_DIR/node_exporter'. Please install 'policycoreutils-python-utils' package"
+      info "Cannot setup SELinux context for binary '$BIN_DIR/node_exporter'. Please install 'policycoreutils-python-utils' package"
     fi
   fi
 }
