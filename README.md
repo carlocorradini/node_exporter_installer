@@ -14,21 +14,6 @@ Inspired by [K3s](https://github.com/k3s-io/k3s) _install.sh_
 curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh | sh -
 ```
 
-or
-
-```console
-curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh -o install.sh
-sh install.sh
-```
-
-or
-
-```console
-curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh -o install.sh
-chmod u+x
-./install.sh
-```
-
 ## Development
 
 ### Requirements
