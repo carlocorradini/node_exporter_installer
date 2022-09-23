@@ -10,20 +10,20 @@ Inspired by [K3s](https://github.com/k3s-io/k3s) _install.sh_
 
 ## Usage
 
-```shell
+```console
 curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh | sh -
 ```
 
 or
 
-```shell
+```console
 curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh -o install.sh
 sh install.sh
 ```
 
 or
 
-```shell
+```console
 curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh -o install.sh
 chmod u+x
 ./install.sh
@@ -40,14 +40,14 @@ chmod u+x
 
 1. Clone
 
-   ```bash
+   ```console
    git clone https://github.com/carlocorradini/node_exporter_installer.git
    cd node_exporter_installer
    ```
 
 1. Install Dependencies
 
-   ```bash
+   ```console
    npm ci
    ```
 
@@ -55,8 +55,14 @@ chmod u+x
 
 ### Check
 
-```shell
+```console
 npm run check
+```
+
+### Fix
+
+```console
+npm run fix
 ```
 
 ## License
