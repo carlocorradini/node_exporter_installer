@@ -1,5 +1,5 @@
-**/build/
-**/coverage/
 **/node_modules/
+**/*.md
 **/package-lock.json
-.gitattributes
+/.husky/_/
+/.gitattributes
