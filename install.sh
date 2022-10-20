@@ -573,9 +573,8 @@ firewall_rule() {
         "ufw allow $NODE_EXPORTER_PORT/tcp"
       ;;
     iptables)
-      printf "%s\n%s\n" \
-        "iptables -I INPUT 1 -p tcp --dport $NODE_EXPORTER_PORT -j ACCEPT" \
-        "iptables -I INPUT 3 -p tcp --dport $NODE_EXPORTER_PORT -j DROP"
+      printf "%s\n" \
+        "iptables -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT" \
       ;;
     *) fatal "Unknown firewall '$FIREWALL'" ;;
   esac
