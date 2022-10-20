@@ -574,7 +574,7 @@ firewall_rule() {
       ;;
     iptables)
       printf "%s\n" \
-        "iptables -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT" \
+        "iptables -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT"
       ;;
     *) fatal "Unknown firewall '$FIREWALL'" ;;
   esac
