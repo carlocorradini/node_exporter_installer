@@ -262,9 +262,16 @@ verify_init_system() {
   fatal 'No supported init system found (OpenRC or systemd)'
 }
 
-# Verify command is installed
-verify_cmd() {
-  command -v "$1" > /dev/null 2>&1 || fatal "Command '$1' not found"
+# Check command is installed
+# @param $1 Command name
+check_cmd() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+# Assert command is installed
+# @param $1 Command name
+assert_cmd() {
+  check_cmd "$1" || fatal "Command '$1' not found"
 }
 
 # Verify firewall
@@ -327,15 +334,15 @@ verify_system() {
   verify_os
   verify_arch_os
   # Commands
-  verify_cmd chmod
-  verify_cmd chown
-  verify_cmd grep
-  verify_cmd mktemp
-  verify_cmd rm
-  verify_cmd sed
-  verify_cmd sha256sum
-  verify_cmd tar
-  verify_cmd tee
+  assert_cmd chmod
+  assert_cmd chown
+  assert_cmd grep
+  assert_cmd mktemp
+  assert_cmd rm
+  assert_cmd sed
+  assert_cmd sha256sum
+  assert_cmd tar
+  assert_cmd tee
   # Init system
   verify_init_system
   # Firewall
@@ -722,10 +729,12 @@ openrc_start() {
 # relabel to executable if SElinux is installed
 setup_selinux() {
   if can_skip_selinux; then
+    info 'Skipping SELinux setup'
     return
   fi
-  if type -p getenforce > /dev/null 2>&1; then
-    if type -p semanage > /dev/null 2>&1; then
+
+  if check_cmd getenforce; then
+    if check_cmd semanage; then
       semanage fcontext -D "$BIN_DIR/node_exporter"
       semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter" && restorecon -v "$BIN_DIR/node_exporter"
     else
