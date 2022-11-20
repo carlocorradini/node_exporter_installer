@@ -3,10 +3,6 @@
 [![ci](https://github.com/carlocorradini/node_exporter_installer/actions/workflows/ci.yml/badge.svg)](https://github.com/carlocorradini/node_exporter_installer/actions/workflows/ci.yml)
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 
-:warning: **Under development**
-
-:wave: **Any help is appreciated**
-
 Inspired by [K3s](https://github.com/k3s-io/k3s) _install.sh_
 
 ## Usage
