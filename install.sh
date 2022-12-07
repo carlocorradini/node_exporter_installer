@@ -505,13 +505,9 @@ create_killall() {
 
 set -x
 
-for service in /etc/systemd/system/node_exporter.service; do
-  [ -s $service ] && systemctl stop $(basename $service)
-done
+[ -s '/etc/systemd/system/node_exporter.service' ] && systemctl stop node_exporter.service
 
-for service in /etc/init.d/node_exporter.service; do
-  [ -x $service ] && $service stop
-done
+[ -x '/etc/init.d/node_exporter' ] && /etc/init.d/node_exporter stop
 
 do_unmount_and_remove() {
   set +x
