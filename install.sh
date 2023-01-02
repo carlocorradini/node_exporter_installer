@@ -72,6 +72,11 @@ fatal() {
   exit 1
 }
 
+# Error log message
+error() {
+  printf '[ERROR] %s\n' "$@" >&2
+}
+
 # Info log message
 info() {
   printf '[INFO ] %s\n' "$@"
