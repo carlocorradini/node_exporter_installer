@@ -281,7 +281,7 @@ verify_firewall_cmd() {
     # Check if exists
     if command -v "$_cmd" > /dev/null 2>&1; then
       # Found
-      FIREWALL=$(command -v "$_cmd" 2>/dev/null)
+      FIREWALL=$_cmd
       return
     fi
   done
@@ -565,19 +565,21 @@ systemd_disable() {
 
 # Compose firewall rule
 firewall_rule() {
-  case $(basename "$FIREWALL") in
+  _firewall_path=$(command -v "$FIREWALL" 2>&1 || :)
+
+  case $FIREWALL in
     firewall-cmd)
       printf "%s\n%s\n" \
-        "$FIREWALL --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
-        "$FIREWALL --reload"
+        "$_firewall_path --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
+        "$_firewall_path --reload"
       ;;
     ufw)
       printf "%s\n" \
-        "$FIREWALL allow $NODE_EXPORTER_PORT/tcp"
+        "$_firewall_path allow $NODE_EXPORTER_PORT/tcp"
       ;;
     iptables)
       printf "%s\n" \
-        "$FIREWALL -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT"
+        "$_firewall_path -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT"
       ;;
     *) fatal "Unknown firewall '$FIREWALL'" ;;
   esac
