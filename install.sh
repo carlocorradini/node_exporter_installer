@@ -90,16 +90,19 @@ quote() {
 # Add indentation and trailing slash to quoted args except last one
 # Also don't add trailing slash to command if no args are given
 quote_indent() {
+   _arg_count=1
+
   if [ $# -ge 1 ]; then
     printf ' \\\n'
   fi
-  _arg_count=1
+ 
   for _arg in "$@"; do
     if [ $_arg_count -eq $# ]; then
       printf '\t%s' "$(quote "$_arg")"
     else
       printf '\t%s \\\n' "$(quote "$_arg")"
     fi
+    _arg_count=$((_arg_count))
   done
 }
 
