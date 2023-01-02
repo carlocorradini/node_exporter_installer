@@ -102,7 +102,7 @@ quote_indent() {
     else
       printf '\t%s \\\n' "$(quote "$_arg")"
     fi
-    _arg_count=$((_arg_count))
+    _arg_count=$((_arg_count + 1))
   done
 }
 
