@@ -372,13 +372,10 @@ setup_tmp() {
 
   cleanup() {
     _exit_code=$?
+    [ "$_exit_code" -eq 0 ] || error "Install script exited with code $_exit_code"
     set +o errexit
     trap - EXIT
     rm -rf "$TMP_DIR"
-    if [ $_exit_code -ne 0 ]; then
-       fatal "Install script exited with code ${_exit_code}. Please check if node_exporter is running."
-    fi
-
     exit $_exit_code
   }
   trap cleanup INT EXIT
