@@ -87,11 +87,19 @@ quote() {
   done
 }
 
-# Add indentation and trailing slash to quoted args
+# Add indentation and trailing slash to quoted args except last one
+# Also don't add trailing slash to command if no args are given
 quote_indent() {
-  printf ' \\\n'
+  if [ $# -ge 1 ]; then
+    printf ' \\\n'
+  fi
+  _arg_count=1
   for _arg in "$@"; do
-    printf '\t%s \\\n' "$(quote "$_arg")"
+    if [ $_arg_count -eq $# ]; then
+      printf '\t%s' "$(quote "$_arg")"
+    else
+      printf '\t%s \\\n' "$(quote "$_arg")"
+    fi
   done
 }
 
@@ -664,8 +672,7 @@ TasksMax=infinity
 TimeoutStartSec=0
 Restart=always
 RestartSec=5s
-ExecStart=$BIN_DIR/node_exporter \\
-    $CMD_NODE_EXPORTER_EXEC
+ExecStart=$BIN_DIR/node_exporter $CMD_NODE_EXPORTER_EXEC
 EOF
 
   if ! can_skip_firewall; then
@@ -674,7 +681,7 @@ EOF
     # Prepend 'ExecStartPre=-' to each rule
     while read -r _rule; do
       _firewall="$_firewall
-    ExecStartPre=-$_rule"
+ExecStartPre=-$_rule"
     done << EOF
 $(firewall_rule)
 EOF
