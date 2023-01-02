@@ -370,6 +370,10 @@ setup_tmp() {
     set +o errexit
     trap - EXIT
     rm -rf "$TMP_DIR"
+    if [ $_exit_code -ne 0 ]; then
+       fatal "Install script exited with code ${_exit_code}. Please check if node_exporter is running."
+    fi
+
     exit $_exit_code
   }
   trap cleanup INT EXIT
@@ -709,6 +713,10 @@ systemd_enable() {
 systemd_start() {
   info "systemd: Starting node_exporter"
   $SUDO systemctl restart node_exporter
+  # Wait an arbitrary amount of time for service to load (systemctl status would report successful start while starting)
+  sleep 1
+  $SUDO systemctl status node_exporter > /dev/null 2>&1
+
 }
 
 # Enable openrc service
@@ -720,6 +728,8 @@ openrc_enable() {
 openrc_start() {
   info "openrc: Starting node_exporter"
   $SUDO "$FILE_NODE_EXPORTER_SERVICE" restart
+  sleep 1
+  $SUDO "$FILE_NODE_EXPORTER_SERVICE" status > /dev/null 2>&1
 }
 
 # relabel to executable if SElinux is installed
