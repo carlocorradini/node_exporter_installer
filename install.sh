@@ -570,19 +570,21 @@ systemd_disable() {
 
 # Compose firewall rule
 firewall_rule() {
+  _firewall_path=$(command -v "$FIREWALL" 2>&1 || :)
+
   case $FIREWALL in
     firewall-cmd)
       printf "%s\n%s\n" \
-        "firewall-cmd --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
-        "firewall-cmd --reload"
+        "$_firewall_path --add-port=$NODE_EXPORTER_PORT/tcp --permanent" \
+        "$_firewall_path --reload"
       ;;
     ufw)
       printf "%s\n" \
-        "ufw allow $NODE_EXPORTER_PORT/tcp"
+        "$_firewall_path allow $NODE_EXPORTER_PORT/tcp"
       ;;
     iptables)
       printf "%s\n" \
-        "iptables -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT"
+        "$_firewall_path -A INPUT -p tcp --dport $NODE_EXPORTER_PORT -m state --state NEW -j ACCEPT"
       ;;
     *) fatal "Unknown firewall '$FIREWALL'" ;;
   esac
