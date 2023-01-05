@@ -38,7 +38,7 @@
 #     /usr/local/bin as the default
 #
 #   - INSTALL_NODE_EXPORTER_SYSTEMD_DIR
-#     Directory to install systemd service files to, or use
+#     Directory to install systemd service files, or use
 #     /etc/systemd/system as the default
 #
 #   - INSTALL_NODE_EXPORTER_EXEC or script arguments
@@ -739,7 +739,8 @@ setup_selinux() {
   if check_cmd getenforce; then
     if check_cmd semanage; then
       semanage fcontext -D "$BIN_DIR/node_exporter"
-      semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter" && restorecon -v "$BIN_DIR/node_exporter"
+      semanage fcontext -a -t bin_t "$BIN_DIR/node_exporter"
+      restorecon -v "$BIN_DIR/node_exporter"
     else
       info "Cannot setup SELinux context for binary '$BIN_DIR/node_exporter'. Please install 'policycoreutils-python-utils' package"
     fi
