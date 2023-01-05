@@ -14,7 +14,7 @@ curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_instal
 ### Uninstall
 
 ```sh
-< BIN_DIR > /node_exporter.uninstall.sh
+<INSTALL_NODE_EXPORTER_BIN_DIR>/node_exporter.uninstall.sh
 ```
 
 ## Example
