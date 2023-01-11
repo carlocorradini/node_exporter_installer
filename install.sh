@@ -715,9 +715,9 @@ systemd_enable() {
 systemd_start() {
   info "systemd: Starting node_exporter"
   $SUDO systemctl restart node_exporter
-  # Wait an arbitrary amount of time for service to load (systemctl status would report successful start while starting)
+  # Wait an arbitrary amount of time for service to load
   sleep 1
-  $SUDO systemctl status node_exporter > /dev/null 2>&1
+  systemctl is-active --quiet node_exporter || fatal "systemd: Error starting node_exporter"
 
 }
 
@@ -730,8 +730,9 @@ openrc_enable() {
 openrc_start() {
   info "openrc: Starting node_exporter"
   $SUDO "$FILE_NODE_EXPORTER_SERVICE" restart
+  # Wait an arbitrary amount of time for service to load
   sleep 1
-  $SUDO "$FILE_NODE_EXPORTER_SERVICE" status > /dev/null 2>&1
+  rc-service --quiet node_exporter status || fatal "openrc: Error starting node_exporter"
 }
 
 # relabel to executable if SElinux is installed
