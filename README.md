@@ -7,7 +7,7 @@ Inspired by [K3s](https://github.com/k3s-io/k3s) `install.sh`
 
 ## Usage
 
-```console
+```sh
 curl -sSfL https://raw.githubusercontent.com/carlocorradini/node_exporter_installer/main/install.sh | sh -
 ```
 
