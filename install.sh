@@ -95,12 +95,12 @@ quote() {
 # Add indentation and trailing slash to quoted args except last one
 # Also don't add trailing slash to command if no args are given
 quote_indent() {
-   _arg_count=1
+  _arg_count=1
 
   if [ $# -ge 1 ]; then
     printf ' \\\n'
   fi
- 
+
   for _arg in "$@"; do
     if [ $_arg_count -eq $# ]; then
       printf '\t%s' "$(quote "$_arg")"
@@ -632,8 +632,7 @@ EOF
 supervisor=supervise-daemon
 name=node_exporter
 command="$BIN_DIR/node_exporter"
-command_args="$(escape_dq "$CMD_NODE_EXPORTER_EXEC")
-    >>$LOG_FILE 2>&1"
+command_args="$(escape_dq "$CMD_NODE_EXPORTER_EXEC") >> $LOG_FILE 2>&1"
 
 output_log=$LOG_FILE
 error_log=$LOG_FILE
