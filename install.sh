@@ -762,8 +762,7 @@ setup_selinux() {
       error "Cannot setup SELinux context for binary '$BIN_DIR/node_exporter'. Please install 'policycoreutils-python-utils' package then re-run this script"
       if check_cmd chcon; then
         info "Trying non permanent SELinux labeling. This won't survive a FS relabeling"
-        chcon -t bin_t "$BIN_DIR/node_exporter"
-        if [ $? -ne 0 ]; then
+        if ! chcon -t bin_t "$BIN_DIR/node_exporter"; then
           error "Cannot set context of binary '$BIN_DIR/node_exporter'"
         else
           info "Temporary SELinux context set for '$BIN_DIR/node_exporter'"
