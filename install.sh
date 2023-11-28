@@ -778,7 +778,7 @@ openrc_start() {
 # Start upstart service
 upstart_start() {
   info "upstart: Starting node_exporter"
-  $SUDO "initctl start node_exporter"
+  $SUDO initctl start node_exporter
   # Wait an arbitrary amount of time for service to load
   sleep 1
   initctl status node_exporter || fatal "upstart: Error starting node_exporter"
