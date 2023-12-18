@@ -1,7 +1,6 @@
 # [Node exporter](https://github.com/prometheus/node_exporter) installation script
 
-[![ci](https://github.com/carlocorradini/node_exporter_installer/actions/workflows/ci.yml/badge.svg)](https://github.com/carlocorradini/node_exporter_installer/actions/workflows/ci.yml)
-[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+[![check](https://github.com/carlocorradini/node_exporter_installer/actions/workflows/check.yaml/badge.svg)](https://github.com/carlocorradini/node_exporter_installer/actions/workflows/check.yaml)
 
 Inspired by [K3s](https://github.com/k3s-io/k3s) `install.sh`
 

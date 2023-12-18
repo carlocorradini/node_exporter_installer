@@ -2,7 +2,10 @@
   "recommendations": [
     "DavidAnson.vscode-markdownlint",
     "EditorConfig.EditorConfig",
+    "esbenp.prettier-vscode",
+    "Gruntfuggly.todo-tree",
     "mads-hartmann.bash-ide-vscode",
+    "streetsidesoftware.code-spell-checker",
     "timonwong.shellcheck",
     "usernamehw.errorlens"
   ]

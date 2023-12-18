@@ -188,7 +188,13 @@ setup_env() {
     systemd)
       FILE_NODE_EXPORTER_SERVICE=$SYSTEMD_DIR/$SERVICE_NODE_EXPORTER
       ;;
-    *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
+    upstart)
+      $SUDO mkdir -p /etc/node_exporter
+      FILE_NODE_EXPORTER_SERVICE=/etc/init/node_exporter.conf
+      ;;
+    *)
+      fatal "Unknown init system '$INIT_SYSTEM'"
+      ;;
   esac
 
   # Get hash of config & exec for currently installed Node exporter
@@ -273,9 +279,16 @@ verify_init_system() {
     INIT_SYSTEM=systemd
     return
   fi
+  # Upstart
+  case $(/sbin/init --version) in
+    *upstart*)
+      INIT_SYSTEM=upstart
+      return
+      ;;
+  esac
 
   # Not supported
-  fatal 'No supported init system found (OpenRC or systemd)'
+  fatal 'No supported init system found (OpenRC, systemd, or Upstart)'
 }
 
 # Check command is installed
@@ -329,7 +342,7 @@ can_skip_firewall() {
   fi
 }
 
-# Chekc if skip selinux environment variable set
+# Check if skip selinux environment variable set
 can_skip_selinux() {
   if [ "$INSTALL_NODE_EXPORTER_SKIP_SELINUX" != true ]; then
     return 1
@@ -702,11 +715,27 @@ EOF
   fi
 }
 
+# Write upstart service file
+create_upstart_service_file() {
+  info "upstart: Creating service file '$FILE_NODE_EXPORTER_SERVICE'"
+  $SUDO tee "$FILE_NODE_EXPORTER_SERVICE" > /dev/null << EOF
+description "Node exporter"
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+respawn limit unlimited
+
+exec $BIN_DIR/node_exporter $CMD_NODE_EXPORTER_EXEC
+EOF
+}
+
 # Write service file
 create_service_file() {
   case $INIT_SYSTEM in
     openrc) create_openrc_service_file ;;
     systemd) create_systemd_service_file ;;
+    upstart) create_upstart_service_file ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
 }
@@ -716,9 +745,23 @@ get_installed_hashes() {
   $SUDO sha256sum "$BIN_DIR/node_exporter" "$FILE_NODE_EXPORTER_SERVICE" 2>&1 || true
 }
 
+# Enable openrc service
+openrc_enable() {
+  info "openrc: Enabling node_exporter service"
+  $SUDO rc-update add node_exporter default > /dev/null
+}
+# Start openrc service
+openrc_start() {
+  info "openrc: Starting node_exporter"
+  $SUDO "$FILE_NODE_EXPORTER_SERVICE" restart
+  # Wait an arbitrary amount of time for service to load
+  sleep 1
+  rc-service --quiet node_exporter status || fatal "openrc: Error starting node_exporter"
+}
+
 # Enable systemd service
 systemd_enable() {
-  info "systemd: Enabling node_exporter unit"
+  info "systemd: Enabling node_exporter service"
   $SUDO systemctl enable "$FILE_NODE_EXPORTER_SERVICE" > /dev/null
   $SUDO systemctl daemon-reload > /dev/null
 }
@@ -732,18 +775,18 @@ systemd_start() {
 
 }
 
-# Enable openrc service
-openrc_enable() {
-  info "openrc: Enabling node_exporter service for default runlevel"
-  $SUDO rc-update add node_exporter default > /dev/null
+# Enable upstart service
+upstart_enable() {
+  info "upstart: Enabling node_exporter service"
+  # Already defined in /etc/init/node_exporter.conf
 }
-# Start openrc service
-openrc_start() {
-  info "openrc: Starting node_exporter"
-  $SUDO "$FILE_NODE_EXPORTER_SERVICE" restart
+# Start upstart service
+upstart_start() {
+  info "upstart: Starting node_exporter"
+  $SUDO initctl start node_exporter
   # Wait an arbitrary amount of time for service to load
   sleep 1
-  rc-service --quiet node_exporter status || fatal "openrc: Error starting node_exporter"
+  initctl status node_exporter || fatal "upstart: Error starting node_exporter"
 }
 
 # relabel to executable if SElinux is installed
@@ -779,6 +822,7 @@ service_enable_and_start() {
   case $INIT_SYSTEM in
     openrc) openrc_enable ;;
     systemd) systemd_enable ;;
+    upstart) upstart_enable ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
 
@@ -791,6 +835,7 @@ service_enable_and_start() {
   case $INIT_SYSTEM in
     openrc) openrc_start ;;
     systemd) systemd_start ;;
+    upstart) upstart_start ;;
     *) fatal "Unknown init system '$INIT_SYSTEM'" ;;
   esac
 

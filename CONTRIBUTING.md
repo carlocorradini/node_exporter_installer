@@ -6,7 +6,7 @@ VSCode is natively supported and configured with recommended extensions and sett
 
 Before creating a pull request execute the following commands:
 
-```console
+```sh
 npm run fix && npm run check
 ```
 
@@ -14,7 +14,7 @@ npm run fix && npm run check
 
 1. Install dependencies
 
-   ```console
+   ```sh
    npm ci
    ```
 
@@ -22,12 +22,12 @@ npm run fix && npm run check
 
 ## Check
 
-```console
+```sh
 npm run check
 ```
 
 ## Fix
 
-```console
+```sh
 npm run fix
 ```
