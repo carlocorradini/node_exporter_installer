@@ -8,7 +8,7 @@ body:
     attributes:
       label: Reference Issues
       description: Common issues.
-      placeholder: '#Issues IDs'
+      placeholder: "#Issues IDs"
     validations:
       required: false
   - type: textarea

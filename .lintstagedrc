@@ -1,4 +1,4 @@
 {
-  "*.{json,md}": "prettier --write",
-  "*.md": "markdownlint"
+  "*.{json,md}": "npx prettier --write",
+  "*.md": "npx markdownlint"
 }

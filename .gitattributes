@@ -1,13 +1,23 @@
-*                 text=auto
+*                 text=auto eol=lf
 
 # Source code
 *.bash            text eol=lf
 *.bat             text eol=crlf
+*.c               text diff=cpp
+*.cc              text diff=cpp
 *.cmd             text eol=crlf
 *.coffee          text
+*.cpi             text diff=cpp
+*.cpp             text diff=cpp
 *.css             text diff=css
+*.cxx             text diff=cpp
+*.c++             text diff=cpp
+*.h               text diff=cpp
+*.hh              text diff=cpp
+*.hpp             text diff=cpp
 *.htm             text diff=html
 *.html            text diff=html
+*.h++             text diff=cpp
 *.inc             text
 *.ini             text
 *.js              text
@@ -23,6 +33,7 @@
 *.ps1             text eol=crlf
 *.py              text diff=python
 *.rb              text diff=ruby
+*.rs              text diff=rust
 *.sass            text
 *.scm             text
 *.scss            text diff=css
@@ -34,6 +45,27 @@
 *.tsx             text
 *.xml             text
 *.xhtml           text diff=html
+
+# Compiled Object files
+*.slo             binary
+*.lo              binary
+*.o               binary
+*.obj             binary
+
+# Precompiled Headers
+*.gch             binary
+*.pch             binary
+
+# Compiled Dynamic libraries
+*.so              binary
+*.dylib           binary
+*.dll             binary
+
+# Compiled Static libraries
+*.lai             binary
+*.la              binary
+*.a               binary
+*.lib             binary
 
 # Docker
 Dockerfile        text
@@ -84,6 +116,7 @@ TODO              text
 *.vue             text
 
 # Configs
+Cargo.lock        text
 *.cnf             text
 *.conf            text
 *.config          text
@@ -98,7 +131,7 @@ package-lock.json text -diff
 pnpm-lock.yaml    text eol=lf -diff
 .prettierrc       text
 yarn.lock         text -diff
-*.toml            text
+*.toml            text diff=toml
 *.yaml            text
 *.yml             text
 browserslist      text
@@ -178,7 +211,8 @@ Procfile          text
 
 # Executables
 *.exe             binary
-*.pyc             binary
+*.out             binary
+*.app             binary
 
 # RC files
 *.*rc             text

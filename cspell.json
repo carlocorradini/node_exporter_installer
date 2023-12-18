@@ -1,0 +1,38 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "useGitignore": true,
+  "import": [
+    "@cspell/dict-npm/cspell-ext.json",
+    "@cspell/dict-shell/cspell-ext.json"
+  ],
+  "ignorePaths": ["**/node_modules/", "**/package-lock.json"],
+  "words": [
+    "aarch",
+    "armv",
+    "chcon",
+    "corradini",
+    "copytruncate",
+    "dport",
+    "fcontext",
+    "getenforce",
+    "killall",
+    "localmount",
+    "mipsle",
+    "mktemp",
+    "missingok",
+    "nproc",
+    "notifempty",
+    "openrc",
+    "pidfile",
+    "policycoreutils",
+    "respawn",
+    "restorecon",
+    "runlevels",
+    "runlevel",
+    "semanage",
+    "shellcheck",
+    "sysconfig",
+    "tada"
+  ]
+}
